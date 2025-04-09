@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"log/slog"
 	"net"
 )
@@ -53,7 +54,16 @@ func (s *Server) Start() error{
 }
 
 func (s *Server)handleRawMessage(rawMsg []byte) error {
-	fmt.Println("rawMsg:", string(rawMsg))
+	cmd, err := parseCommand(string(rawMsg))
+
+	if err != nil {
+		return err
+	}
+     
+	switch v:=cmd.(type){
+		case SetCommand:
+			slog.Info("set command", "key", v.key, "val", v.val)
+	}
 	return nil
 
 }
@@ -113,9 +123,10 @@ func main() {
 
 	//Create neew server instance and starts it
 	//cfg:=Config{ListenAddr:":3000"}
-	server:=NewServer(Config{})
-	err:=server.Start()
-	if err != nil {
-		slog.Error("start server error","err",err)
-	}
+	go func(){
+		server:=NewServer(Config{})
+	     log.Fatal(server.Start())
+	}()
+	
+	select {}
 }
