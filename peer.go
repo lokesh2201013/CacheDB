@@ -2,6 +2,8 @@ package main
 
 import (
 	//"fmt"
+	"bufio"
+	"io"
 	"log/slog"
 	"net"
 )
@@ -18,10 +20,11 @@ func NewPeer(conn net.Conn,msgCh chan []byte) *Peer {
 	}
 }
 
-func(p *Peer) readLoop()error{
+/*func(p *Peer) readLoop()error{
 	buf:= make([]byte, 1024)
+	
 	for{
-      n,err:=p.conn.Read(buf)
+      n,err:=(p.conn.Read(buf))
 
 	  if err != nil {
 		slog.Error("read error",err)
@@ -35,7 +38,23 @@ func(p *Peer) readLoop()error{
 
 	  p.msgCh<-msgBuf
 	}
-}
+}*/
+func (p *Peer) readLoop2() error {
+	reader := bufio.NewReader(p.conn)
 
+	for {
+		line, err := reader.ReadString('\n') // wait until Enter is pressed
+		if err != nil {
+			if err == io.EOF {
+				slog.Info("peer disconnected")
+				return nil
+			}
+			slog.Error("read error", "err", err)
+			return err
+		}
+
+		p.msgCh <- []byte(line)
+	}
+}
 
 

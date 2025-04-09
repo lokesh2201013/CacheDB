@@ -18,7 +18,8 @@ type Server struct{
 	quitCh chan struct{}
 	msgCh chan []byte
 	}
-	
+//Intialises a server instance sets the listenADDR
+//and intitalises the  Strict Server
 func NewServer(cfg Config) *Server{
 
 	if len(cfg.ListenAddr) == 0 {
@@ -34,12 +35,15 @@ func NewServer(cfg Config) *Server{
 	}
 }
 
+//Listens on the specified address and starts the server
+// Starts Goroutine of loop and returns s.acceptLoop
 func (s *Server) Start() error{
 	ln,err:=net.Listen("tcp",s.ListenAddr)
 	if err != nil {
 		return err
 	}
-
+    
+	//Sets Server ln val
 	s.ln = ln
 	slog.Info("server started", "listenAddr", s.ListenAddr)
 	go s.loop()
@@ -48,14 +52,28 @@ func (s *Server) Start() error{
 
 }
 
+func (s *Server)handleRawMessage(rawMsg []byte) error {
+	fmt.Println("rawMsg:", string(rawMsg))
+	return nil
+
+}
+
+//Goroutine that takes messages from the msgCh channel and handles them
+// by calling handleRawMessage it takes in messages
+//Listens for new peers and shut down signal
 func (s *Server) loop() {
 	for{
 		select{
 			case rawMsg := <-s.msgCh:
-
+             if err:=   s.handleRawMessage(rawMsg); err != nil {
+				slog.Error("handle raw message error","err",err)
+				continue
+			 }
 				fmt.Println("msg:", (rawMsg))
+
 			case <-s.quitCh:
 				return
+
 			case peer := <-s.addPeerCh:
 				s.peers[peer] = true
 
@@ -63,34 +81,41 @@ func (s *Server) loop() {
 	}
 }
 
+//Accepst conn of Start set from Server ln
+// Run Indefinately
+//Gorotine HandleConn sends conn
 func (s *Server)acceptLoop() error{
    for {
 	 conn,err:=s.ln.Accept()
 	 if err != nil {
-		slog.Error("accept error",err)
+		slog.Error("accept error","err",err)
 		continue
 	 }
 	 go s.handleConn(conn)
    }
 }
 
+//
 func (s *Server)handleConn(conn net.Conn){
 peer:= NewPeer(conn,s.msgCh)
  s.addPeerCh <- peer
 slog.Info("new peer","remoteAddr",conn.RemoteAddr(),)
  //go peer.readLoop()
 
- if err := peer.readLoop(); err != nil {
-		slog.Error("peer read loop error",err,"remoteAddr",conn.RemoteAddr())
+ if err := peer.readLoop2(); err != nil {
+		slog.Error("peer read loop error","err",err,"remoteAddr",conn.RemoteAddr())
 	}
 }
 
 
 
 func main() {
+
+	//Create neew server instance and starts it
+	//cfg:=Config{ListenAddr:":3000"}
 	server:=NewServer(Config{})
 	err:=server.Start()
 	if err != nil {
-		slog.Error("start server error",err)
+		slog.Error("start server error","err",err)
 	}
 }
